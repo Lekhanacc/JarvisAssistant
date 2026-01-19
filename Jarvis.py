@@ -5,164 +5,145 @@ import wikipedia
 import webbrowser
 import os
 import random
+import pyjokes
+
+# ---------------- SETUP ----------------
+
+engine = pyttsx3.init('sapi5')
+voices = engine.getProperty('voices')
+engine.setProperty('voice', voices[0].id)
 
 def speak(audio):
-    engine = pyttsx3.init()
-    voices = engine.getProperty('voices')
-    engine.setProperty('voice', voices[0].id)
-    engine.setProperty('rate', 170)
     engine.say(audio)
     engine.runAndWait()
+
+# ---------------- GREETING ----------------
+
+def wishMe():
+    hour = int(datetime.datetime.now().hour)
+    if hour < 12:
+        speak("Good Morning Lekhs!")
+    elif hour < 18:
+        speak("Good Afternoon Lekhs!")
+    else:
+        speak("Good Evening Lekhs!")
+    speak("I am Jarvis. How can I help you?")
+
+# ---------------- INPUT METHODS ----------------
 
 def takeVoiceCommand():
     r = sr.Recognizer()
     with sr.Microphone() as source:
-        print("Listening (voice)...")
+        print("Listening...")
         r.pause_threshold = 1
         audio = r.listen(source)
 
     try:
         print("Recognizing...")
         query = r.recognize_google(audio, language='en-in')
-        print(f"Voice: {query}")
-        return query
+        print(f"You said: {query}\n")
     except:
-        print("Could not understand voice. Try typing instead.")
-        return None
+        speak("Say that again please...")
+        return "none"
+    return query.lower()
 
-def takeInput():
-    print("\nSpeak OR Type your command:")
-    text = input("Type here (or press Enter to use voice): ").strip()
+def takeTextCommand():
+    return input("Type your command: ").lower()
 
-    if text != "":
-        print(f"Text: {text}")
-        return text.lower()
-    else:
-        return takeVoiceCommand()
+def chooseInputMode():
+    speak("Do you want to speak or type?")
+    print("Choose input mode: voice / text")
+    mode = input("Enter mode (voice/text): ").lower()
+    return mode
 
-def wishMe():
-    hour = int(datetime.datetime.now().hour)
-    if hour < 12:
-        speak("Good Morning!")
-    elif hour < 18:
-        speak("Good Afternoon!")
-    else:
-        speak("Good Evening!")
+# ---------------- FEATURES ----------------
 
-    speak("I am Jarvis. You can talk to me or type commands.")
+def playMusic():
+    music_dir = 'D:\\Non Critical\\songs\\Favorite Songs2'  # change path if needed
+    if not os.path.exists(music_dir):
+        speak("Music directory not found")
+        return
+    songs = os.listdir(music_dir)
+    song = random.choice(songs)
+    os.startfile(os.path.join(music_dir, song))
 
-def getDate():
-    today = datetime.date.today().strftime("%B %d, %Y")
-    speak(f"Today's date is {today}")
-    print(today)
+def tellTime():
+    time = datetime.datetime.now().strftime("%H:%M:%S")
+    speak(f"The time is {time}")
 
-def tellJoke():
-    jokes = [
-        "Why do programmers prefer dark mode? Because light attracts bugs.",
-        "Why did the computer get cold? Because it forgot to close its windows.",
-        "I told my computer I needed a break. It said no problem, it froze."
-    ]
-    joke = random.choice(jokes)
-    speak(joke)
-    print(joke)
+def tellDate():
+    date = datetime.datetime.now().strftime("%d %B %Y")
+    speak(f"Today's date is {date}")
+
+def takeNote(note):
+    with open("notes.txt", "a") as f:
+        f.write(note + "\n")
+    speak("I have saved your note")
+
+# ---------------- MAIN PROGRAM ----------------
 
 if __name__ == "__main__":
     wishMe()
+    mode = chooseInputMode()
 
     while True:
-        query = takeInput()
+        if mode == "voice":
+            query = takeVoiceCommand()
+        else:
+            query = takeTextCommand()
 
-        if query is None:
+        if query == "none":
             continue
-        query = query.lower()
+
+        # ---------------- COMMAND HANDLING ----------------
 
         if 'wikipedia' in query:
-            speak("Searching Wikipedia")
+            speak("Searching Wikipedia...")
             query = query.replace("wikipedia", "")
-            results = wikipedia.summary(query, sentences=2)
-            print(results)
-            speak(results)
+            try:
+                results = wikipedia.summary(query, sentences=2)
+                speak(results)
+            except:
+                speak("Could not find results")
 
         elif 'open youtube' in query:
-            speak("Opening YouTube")
             webbrowser.open("https://youtube.com")
 
         elif 'open google' in query:
-            speak("Opening Google")
             webbrowser.open("https://google.com")
 
-        elif 'open gmail' in query:
-            speak("Opening Gmail")
-            webbrowser.open("https://mail.google.com")
-
-        elif 'open whatsapp' in query:
-            speak("Opening WhatsApp Web")
-            webbrowser.open("https://web.whatsapp.com")
-
-        elif 'search' in query:
-            speak("What should I search for?")
-            search_query = takeInput()
-            if search_query:
-                webbrowser.open(f"https://www.google.com/search?q={search_query}")
-
         elif 'open stackoverflow' in query:
-            speak("Opening StackOverflow")
             webbrowser.open("https://stackoverflow.com")
 
-        elif 'play music' in query or 'open music' in query:
-            speak("Opening YouTube Music")
-            webbrowser.open("https://music.youtube.com/")
+        elif 'search google for' in query:
+            query = query.replace("search google for", "")
+            webbrowser.open(f"https://www.google.com/search?q={query}")
+
+        elif 'play music' in query:
+            playMusic()
 
         elif 'time' in query:
-            now = datetime.datetime.now().strftime("%I:%M %p")
-            print(f"The current time is {now}")
-            speak(f"The current time is {now}")
+            tellTime()
 
         elif 'date' in query:
-            getDate()
+            tellDate()
 
-        elif 'open code' in query:
-            codePath = "C:\\Users\\Lekana\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
-            os.startfile(codePath)
-            speak("Opening Visual Studio Code")
-
-        elif 'write note' in query or 'make a note' in query:
+        elif 'take note' in query:
             speak("What should I write?")
-            note = takeInput()
-            if note:
-                with open("notes.txt", "a") as f:
-                    f.write(note + "\n")
-                speak("Note saved")
+            note = takeVoiceCommand() if mode == "voice" else takeTextCommand()
+            takeNote(note)
 
-        elif 'read note' in query or 'read notes' in query:
-            if os.path.exists("notes.txt"):
-                with open("notes.txt", "r") as f:
-                    notes = f.read()
-                print(notes)
-                speak("Here are your notes")
-                speak(notes)
-            else:
-                speak("No notes found")
+        elif 'tell me a joke' in query:
+            speak(pyjokes.get_joke())
 
-        elif 'joke' in query:
-            tellJoke()
+        elif 'switch mode' in query:
+            speak("Switching input mode")
+            mode = chooseInputMode()
 
-        elif 'shutdown' in query:
-            speak("Are you sure you want to shut down?")
-            confirm = takeInput()
-            if confirm and 'yes' in confirm:
-                os.system("shutdown /s /t 5")
-
-        elif 'restart' in query:
-            speak("Are you sure you want to restart?")
-            confirm = takeInput()
-            if confirm and 'yes' in confirm:
-                os.system("shutdown /r /t 5")
-
-        elif 'stop' in query or 'exit' in query or 'quit' in query or 'bye' in query:
-            speak("Thank you for using me. Goodbye!")
-            print("Jarvis stopped.")
+        elif 'exit' in query or 'stop' in query:
+            speak("Goodbye Lekhs!")
             break
 
         else:
-            print("No command matched.")
+            speak("Sorry, I did not understand that.")
+
